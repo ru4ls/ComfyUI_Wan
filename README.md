@@ -290,7 +290,7 @@ This node scales videos in different directions using the Wan VACE model.
 ### Text-to-Image Generation
 Prompt: "Generate an image of a cat swimming under the water"
 
-![Text-to-Image Example](media/ComfyUI_Wan-t2i.png)
+![Text-to-Image Example](media/ComfyUI_Wan-t2i-new.png)
 
 ### Text-to-Video Generation
 1. Add the "Wan Text-to-Video Generator" node to your workflow
