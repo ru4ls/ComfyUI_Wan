@@ -309,7 +309,7 @@ Prompt: "Generate an image of a cat swimming under the water"
 3. Output directory: "./videos" (default) or any custom path
 4. To preview: Connect the output to a "Load Video (Path)" node from ComfyUI-VideoHelperSuite
 
-![Image-to-Video Example](media/ComfyUI_Wan-i2v.png)
+![Image-to-Video Example](media/ComfyUI_Wan-i2v-new.png)
 
 ### Image-to-Video (First/Last Frame) Generation
 1. Add the "Wan Image-to-Video (First/Last Frame) Generator" node to your workflow
