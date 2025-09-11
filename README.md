@@ -305,7 +305,7 @@ Prompt: "Generate an image of a cat swimming under the water"
 
 ### Image-to-Video Generation
 1. First frame: Provide a URL to an image (e.g., "https://example.com/your_image.png")
-2. Prompt: "a cat swimming under the water, suddenly a barracuda swim cross over him, the cat looks suprised and suddenly attracting to the fish."
+2. Prompt: "a cat running in the grass"
 3. Output directory: "./videos" (default) or any custom path
 4. To preview: Connect the output to a "Load Video (Path)" node from ComfyUI-VideoHelperSuite
 
@@ -315,7 +315,7 @@ Prompt: "Generate an image of a cat swimming under the water"
 1. Add the "Wan Image-to-Video (First/Last Frame) Generator" node to your workflow
 2. Select the desired model (wan2.1-kf2v-plus)
 3. Provide publicly accessible URLs to the first and last frame images
-4. Connect a text input with your prompt describing the video content and transition
+4. Prompt: "a cat running in the grass"Realistic style. A black kitten looks up at the sky curiously. The camera gradually rises from eye level, ending with a top-down shot of the kitten's curious eyes."
 5. Optionally configure the output directory where the video will be saved (can be browsed in ComfyUI)
 6. Execute the node
 7. The node will return a path to the downloaded video file
