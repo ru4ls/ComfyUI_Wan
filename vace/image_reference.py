@@ -1,5 +1,5 @@
 """
-Wan VACE Video Repainting Node for ComfyUI
+Wan VACE Multi-Image Reference Node for ComfyUI
 """
 
 import os
@@ -16,7 +16,7 @@ import pathlib
 from datetime import datetime
 
 # Import the base class and COMFYUI_AVAILABLE flag
-from .wan_base import WanAPIBase, COMFYUI_AVAILABLE
+from ..core.base import WanAPIBase, COMFYUI_AVAILABLE
 
 # Try to import folder_paths if available
 try:
@@ -24,26 +24,27 @@ try:
 except ImportError:
     pass
 
-class WanVACEVideoRepainting(WanAPIBase):
-    """Node for video repainting using Wan VACE model"""
+class WanVACEImageReference(WanAPIBase):
+    """Node for multi-image reference using Wan VACE model"""
     
     # Define available Wan VACE models
     MODEL_OPTIONS = [
         "wan2.1-vace-plus"    # Professional Edition
     ]
     
-    # Define control conditions for video repainting
-    CONTROL_CONDITION_OPTIONS = [
-        "posebodyface",       # Extract facial expressions and body movements
-        "posebody",           # Extract body movements only
-        "depth",              # Extract composition and motion contours
-        "scribble"            # Extract line art structure
+    # Define video resolutions
+    RESOLUTION_OPTIONS = [
+        "1280*720",           # 16:9 aspect ratio (default)
+        "720*1280",           # 9:16 aspect ratio
+        "960*960",            # 1:1 aspect ratio
+        "832*1088",           # 3:4 aspect ratio
+        "1088*832"            # 4:3 aspect ratio
     ]
     
     def __init__(self):
         super().__init__()
         # Use the centralized API endpoint from the base class
-        # To use Mainland China region, modify API_ENDPOINT_POST_VIDEO in wan_base.py
+        # To use Mainland China region, modify API_ENDPOINT_POST_VIDEO in core/base.py
         self.api_url = self.API_ENDPOINT_POST_VIDEO
     
     @classmethod
@@ -69,27 +70,22 @@ class WanVACEVideoRepainting(WanAPIBase):
                 }),
                 "prompt": ("STRING", {
                     "multiline": True,
-                    "default": "Repaint the video with the following description"
+                    "default": "Generate a video based on the provided reference images"
                 }),
-                "video_url": ("STRING", {
-                    "default": "",
-                    "tooltip": "URL of the input video"
-                })
-            },
-            "optional": {
                 "ref_images_url": ("STRING", {
                     "multiline": True,
                     "default": "",
-                    "tooltip": "Newline-separated URLs for reference images (only 1 image supported)"
+                    "tooltip": "Newline-separated URLs for reference images"
+                })
+            },
+            "optional": {
+                "obj_or_bg": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Newline-separated values (obj/bg) corresponding to ref_images_url"
                 }),
-                "control_condition": (cls.CONTROL_CONDITION_OPTIONS, {
-                    "default": "depth"
-                }),
-                "strength": ("FLOAT", {
-                    "default": 1.0,
-                    "min": 0.0,
-                    "max": 1.0,
-                    "step": 0.1
+                "size": (cls.RESOLUTION_OPTIONS, {
+                    "default": "1280*720"
                 }),
                 "seed": ("INT", {
                     "default": 0,
@@ -110,22 +106,31 @@ class WanVACEVideoRepainting(WanAPIBase):
     FUNCTION = "generate"
     CATEGORY = "Ru4ls/Wan/VACE"
     
-    def generate(self, model, prompt, video_url, ref_images_url="", control_condition="depth", 
-                 strength=1.0, seed=0, prompt_extend=False, watermark=False, output_dir="./videos"):
+    def generate(self, model, prompt, ref_images_url, obj_or_bg="", size="1280*720", 
+                 seed=0, prompt_extend=False, watermark=False, output_dir="./videos"):
         
         # Check API key
         self.check_api_key()
+        
+        # Validate required inputs
+        if not ref_images_url or not ref_images_url.strip():
+            raise ValueError("Reference images URLs are required for image reference function")
+        
+        # Handle ref_images_url as a list
+        ref_images_list = [url.strip() for url in ref_images_url.split('\n') if url.strip()]
+        if not ref_images_list:
+            raise ValueError("At least one valid reference image URL is required")
         
         # Prepare API payload
         payload = {
             "model": model,
             "input": {
-                "function": "video_repainting",
+                "function": "image_reference",
                 "prompt": prompt,
-                "video_url": video_url
+                "ref_images_url": ref_images_list
             },
             "parameters": {
-                "control_condition": control_condition,
+                "size": size,
                 "prompt_extend": prompt_extend,
                 "watermark": watermark
             }
@@ -134,16 +139,25 @@ class WanVACEVideoRepainting(WanAPIBase):
         # Add seed if provided
         if seed > 0:
             payload["parameters"]["seed"] = seed
-            
-        # Add strength if not default
-        if strength != 1.0:
-            payload["parameters"]["strength"] = strength
         
-        # Handle ref_images_url as a list (only 1 image supported)
-        if ref_images_url:
-            ref_images_list = [url.strip() for url in ref_images_url.split('\n') if url.strip()]
-            if ref_images_list:
-                payload["input"]["ref_images_url"] = ref_images_list[:1]  # Only take the first image
+        # Handle obj_or_bg as a list
+        if obj_or_bg:
+            obj_or_bg_list = [item.strip() for item in obj_or_bg.split('\n') if item.strip()]
+            if obj_or_bg_list:
+                # Validate that obj_or_bg_list has the same length as ref_images_list
+                if len(obj_or_bg_list) != len(ref_images_list):
+                    raise ValueError("obj_or_bg list must have the same length as ref_images_url list")
+                payload["parameters"]["obj_or_bg"] = obj_or_bg_list
+        else:
+            # If obj_or_bg is not provided, automatically generate it:
+            # - For single image: default to ["obj"]
+            # - For multiple images: assume last image is background, rest are entities
+            if len(ref_images_list) == 1:
+                payload["parameters"]["obj_or_bg"] = ["obj"]
+            else:
+                # For multiple images, assume last is bg, rest are obj
+                obj_or_bg_auto = ["obj"] * (len(ref_images_list) - 1) + ["bg"]
+                payload["parameters"]["obj_or_bg"] = obj_or_bg_auto
         
         # Set headers according to DashScope documentation
         headers = {
@@ -208,7 +222,7 @@ class WanVACEVideoRepainting(WanAPIBase):
         import time
         
         # URL for querying task results
-        # To use Mainland China region, modify API_ENDPOINT_GET in wan_base.py
+        # To use Mainland China region, modify API_ENDPOINT_GET in core/base.py
         query_url = self.API_ENDPOINT_GET.format(task_id=task_id)
         
         headers = {
@@ -240,7 +254,7 @@ class WanVACEVideoRepainting(WanAPIBase):
                         
                         # Create a unique filename for the video
                         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        video_filename = f"wan_vace_video_repainting_{timestamp}.mp4"
+                        video_filename = f"wan_vace_image_reference_{timestamp}.mp4"
                         
                         # Handle output directory based on ComfyUI availability
                         if COMFYUI_AVAILABLE and not output_dir.startswith(("./", "/")):
