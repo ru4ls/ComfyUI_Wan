@@ -28,7 +28,7 @@ This is a direct integration with Alibaba Cloud's Model Studio service, not a th
 
 ## Regional Support
 
-This node supports both international and Mainland China Alibaba Cloud regions. By default, it uses the international region endpoints, but you can easily switch to Mainland China endpoints by modifying the variables in `wan_base.py`:
+This node supports both international and Mainland China Alibaba Cloud regions. By default, it uses the international region endpoints, but you can easily switch to Mainland China endpoints by modifying the variables in `core/base.py`:
 
 - **International Region** (default):
   - Video POST: `https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis`
@@ -42,11 +42,11 @@ This node supports both international and Mainland China Alibaba Cloud regions. 
   - T2I POST: `https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis`
   - GET: `https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}`
 
-To switch regions, simply modify the `API_ENDPOINT_POST_VIDEO`, `API_ENDPOINT_POST_II2V`, `API_ENDPOINT_POST_T2I`, and `API_ENDPOINT_GET` variables in `wan_base.py` to the corresponding Mainland China endpoints listed above.
+To switch regions, simply modify the `API_ENDPOINT_POST_VIDEO`, `API_ENDPOINT_POST_II2V`, `API_ENDPOINT_POST_T2I`, and `API_ENDPOINT_GET` variables in `core/base.py` to the corresponding Mainland China endpoints listed above.
 
 ## Centralized Endpoint Management
 
-All API endpoints are centrally managed in the `wan_base.py` file, making it easy to maintain and switch between regions. This approach ensures consistency across all nodes and simplifies future updates. The centralized management includes:
+All API endpoints are centrally managed in the `core/base.py` file, making it easy to maintain and switch between regions. This approach ensures consistency across all nodes and simplifies future updates. The centralized management includes:
 
 - `API_ENDPOINT_POST_VIDEO`: For general video generation nodes (I2V, T2V, VACE)
 - `API_ENDPOINT_POST_II2V`: For image-to-video with first/last frames (II2V)

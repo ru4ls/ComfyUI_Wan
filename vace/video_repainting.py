@@ -1,5 +1,5 @@
 """
-Wan VACE Video Extension Node for ComfyUI
+Wan VACE Video Repainting Node for ComfyUI
 """
 
 import os
@@ -16,7 +16,7 @@ import pathlib
 from datetime import datetime
 
 # Import the base class and COMFYUI_AVAILABLE flag
-from .wan_base import WanAPIBase, COMFYUI_AVAILABLE
+from ..core.base import WanAPIBase, COMFYUI_AVAILABLE
 
 # Try to import folder_paths if available
 try:
@@ -24,17 +24,16 @@ try:
 except ImportError:
     pass
 
-class WanVACEVideoExtension(WanAPIBase):
-    """Node for video extension using Wan VACE model"""
+class WanVACEVideoRepainting(WanAPIBase):
+    """Node for video repainting using Wan VACE model"""
     
     # Define available Wan VACE models
     MODEL_OPTIONS = [
         "wan2.1-vace-plus"    # Professional Edition
     ]
     
-    # Define control conditions for video extension
+    # Define control conditions for video repainting
     CONTROL_CONDITION_OPTIONS = [
-        "",                   # No control condition
         "posebodyface",       # Extract facial expressions and body movements
         "posebody",           # Extract body movements only
         "depth",              # Extract composition and motion contours
@@ -44,7 +43,7 @@ class WanVACEVideoExtension(WanAPIBase):
     def __init__(self):
         super().__init__()
         # Use the centralized API endpoint from the base class
-        # To use Mainland China region, modify API_ENDPOINT_POST_VIDEO in wan_base.py
+        # To use Mainland China region, modify API_ENDPOINT_POST_VIDEO in core/base.py
         self.api_url = self.API_ENDPOINT_POST_VIDEO
     
     @classmethod
@@ -70,32 +69,27 @@ class WanVACEVideoExtension(WanAPIBase):
                 }),
                 "prompt": ("STRING", {
                     "multiline": True,
-                    "default": "Extend the video with the following description"
-                })
-            },
-            "optional": {
-                "first_frame_url": ("STRING", {
-                    "default": "",
-                    "tooltip": "URL of the first frame image"
-                }),
-                "last_frame_url": ("STRING", {
-                    "default": "",
-                    "tooltip": "URL of the last frame image"
-                }),
-                "first_clip_url": ("STRING", {
-                    "default": "",
-                    "tooltip": "URL of the first video segment"
-                }),
-                "last_clip_url": ("STRING", {
-                    "default": "",
-                    "tooltip": "URL of the last video segment"
+                    "default": "Repaint the video with the following description"
                 }),
                 "video_url": ("STRING", {
                     "default": "",
-                    "tooltip": "URL of the reference video for motion features"
+                    "tooltip": "URL of the input video"
+                })
+            },
+            "optional": {
+                "ref_images_url": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Newline-separated URLs for reference images (only 1 image supported)"
                 }),
                 "control_condition": (cls.CONTROL_CONDITION_OPTIONS, {
-                    "default": ""
+                    "default": "depth"
+                }),
+                "strength": ("FLOAT", {
+                    "default": 1.0,
+                    "min": 0.0,
+                    "max": 1.0,
+                    "step": 0.1
                 }),
                 "seed": ("INT", {
                     "default": 0,
@@ -116,9 +110,8 @@ class WanVACEVideoExtension(WanAPIBase):
     FUNCTION = "generate"
     CATEGORY = "Ru4ls/Wan/VACE"
     
-    def generate(self, model, prompt, first_frame_url="", last_frame_url="", 
-                 first_clip_url="", last_clip_url="", video_url="", control_condition="",
-                 seed=0, prompt_extend=False, watermark=False, output_dir="./videos"):
+    def generate(self, model, prompt, video_url, ref_images_url="", control_condition="depth", 
+                 strength=1.0, seed=0, prompt_extend=False, watermark=False, output_dir="./videos"):
         
         # Check API key
         self.check_api_key()
@@ -127,10 +120,12 @@ class WanVACEVideoExtension(WanAPIBase):
         payload = {
             "model": model,
             "input": {
-                "function": "video_extension",
-                "prompt": prompt
+                "function": "video_repainting",
+                "prompt": prompt,
+                "video_url": video_url
             },
             "parameters": {
+                "control_condition": control_condition,
                 "prompt_extend": prompt_extend,
                 "watermark": watermark
             }
@@ -140,29 +135,15 @@ class WanVACEVideoExtension(WanAPIBase):
         if seed > 0:
             payload["parameters"]["seed"] = seed
             
-        # Add control condition if provided
-        if control_condition:
-            payload["parameters"]["control_condition"] = control_condition
-            
-        # Add first_frame_url if provided
-        if first_frame_url:
-            payload["input"]["first_frame_url"] = first_frame_url
-            
-        # Add last_frame_url if provided
-        if last_frame_url:
-            payload["input"]["last_frame_url"] = last_frame_url
-            
-        # Add first_clip_url if provided
-        if first_clip_url:
-            payload["input"]["first_clip_url"] = first_clip_url
-            
-        # Add last_clip_url if provided
-        if last_clip_url:
-            payload["input"]["last_clip_url"] = last_clip_url
-            
-        # Add video_url if provided
-        if video_url:
-            payload["input"]["video_url"] = video_url
+        # Add strength if not default
+        if strength != 1.0:
+            payload["parameters"]["strength"] = strength
+        
+        # Handle ref_images_url as a list (only 1 image supported)
+        if ref_images_url:
+            ref_images_list = [url.strip() for url in ref_images_url.split('\n') if url.strip()]
+            if ref_images_list:
+                payload["input"]["ref_images_url"] = ref_images_list[:1]  # Only take the first image
         
         # Set headers according to DashScope documentation
         headers = {
@@ -227,7 +208,7 @@ class WanVACEVideoExtension(WanAPIBase):
         import time
         
         # URL for querying task results
-        # To use Mainland China region, modify API_ENDPOINT_GET in wan_base.py
+        # To use Mainland China region, modify API_ENDPOINT_GET in core/base.py
         query_url = self.API_ENDPOINT_GET.format(task_id=task_id)
         
         headers = {
@@ -259,7 +240,7 @@ class WanVACEVideoExtension(WanAPIBase):
                         
                         # Create a unique filename for the video
                         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        video_filename = f"wan_vace_video_extension_{timestamp}.mp4"
+                        video_filename = f"wan_vace_video_repainting_{timestamp}.mp4"
                         
                         # Handle output directory based on ComfyUI availability
                         if COMFYUI_AVAILABLE and not output_dir.startswith(("./", "/")):

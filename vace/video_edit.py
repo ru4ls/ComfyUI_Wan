@@ -16,7 +16,7 @@ import pathlib
 from datetime import datetime
 
 # Import the base class and COMFYUI_AVAILABLE flag
-from .wan_base import WanAPIBase, COMFYUI_AVAILABLE
+from ..core.base import WanAPIBase, COMFYUI_AVAILABLE
 
 # Try to import folder_paths if available
 try:
@@ -66,7 +66,7 @@ class WanVACEVideoEdit(WanAPIBase):
     def __init__(self):
         super().__init__()
         # Use the centralized API endpoint from the base class
-        # To use Mainland China region, modify API_ENDPOINT_POST_VIDEO in wan_base.py
+        # To use Mainland China region, modify API_ENDPOINT_POST_VIDEO in core/base.py
         self.api_url = self.API_ENDPOINT_POST_VIDEO
     
     @classmethod
@@ -273,7 +273,7 @@ class WanVACEVideoEdit(WanAPIBase):
         import time
         
         # URL for querying task results
-        # To use Mainland China region, modify API_ENDPOINT_GET in wan_base.py
+        # To use Mainland China region, modify API_ENDPOINT_GET in core/base.py
         query_url = self.API_ENDPOINT_GET.format(task_id=task_id)
         
         headers = {

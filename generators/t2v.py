@@ -9,9 +9,10 @@ import base64
 from dotenv import load_dotenv
 import sys
 import pathlib
+from datetime import datetime
 
-# Import the base class
-from .wan_base import WanAPIBase, COMFYUI_AVAILABLE
+# Import the base class and COMFYUI_AVAILABLE flag
+from ..core.base import WanAPIBase, COMFYUI_AVAILABLE
 
 # Try to import folder_paths if available
 try:
@@ -19,53 +20,59 @@ try:
 except ImportError:
     pass
 
-class WanT2IGenerator(WanAPIBase):
-    """Node for text-to-image generation using Wan model"""
+class WanT2VGenerator(WanAPIBase):
+    """Node for text-to-video generation using Wan model"""
     
-    # Define available Wan models
+    # Define available Wan t2v models
     MODEL_OPTIONS = [
-        "wan2.2-t2i-flash",  # Speed Edition
-        "wan2.2-t2i-plus"    # Professional Edition
+        "wan2.2-t2v-plus"    # Professional Edition
     ]
     
-    # Define allowed sizes for Wan models with descriptive names
-    # Based on the documentation, Wan supports sizes from 512 to 1440 pixels
-    SIZE_OPTIONS = [
-        "1024*1024",  # 1:1 square (default)
-        "1152*896",   # 9:7 landscape
-        "896*1152",   # 7:9 portrait
-        "1280*720",   # 16:9 landscape
-        "720*1280",   # 9:16 portrait
-        "1440*512",   # Wide landscape
-        "512*1440"    # Tall portrait
+    # Define allowed resolutions for Wan t2v models
+    RESOLUTION_OPTIONS = [
+        "480P",
+        "1080P"
     ]
     
     def __init__(self):
         super().__init__()
         # Use the centralized API endpoint from the base class
-        # To use Mainland China region, modify API_ENDPOINT_POST_T2I in wan_base.py
-        self.api_url = self.API_ENDPOINT_POST_T2I
-        self.model = "wan2.2-t2i-flash"  # Using Wan Speed Edition as default
+        # To use Mainland China region, modify API_ENDPOINT_POST_VIDEO in core/base.py
+        self.api_url = self.API_ENDPOINT_POST_VIDEO
     
     @classmethod
     def INPUT_TYPES(cls):
+        # Define output directory options
+        if COMFYUI_AVAILABLE:
+            # Use ComfyUI's output directory with browseable option
+            output_dir_options = {
+                "default": "./videos",
+                "tooltip": "Directory where the generated video will be saved. Browse to select a custom directory."
+            }
+        else:
+            # Fallback to string input
+            output_dir_options = {
+                "default": "./videos",
+                "multiline": False
+            }
+            
         return {
             "required": {
                 "model": (cls.MODEL_OPTIONS, {
-                    "default": "wan2.2-t2i-flash"
+                    "default": "wan2.2-t2v-plus"
                 }),
                 "prompt": ("STRING", {
                     "multiline": True,
-                    "default": "Generate an image of a cat"
-                }),
-                "size": (cls.SIZE_OPTIONS, {
-                    "default": "1024*1024"
+                    "default": "A kitten running in the moonlight"
                 })
             },
             "optional": {
                 "negative_prompt": ("STRING", {
                     "multiline": True,
                     "default": ""
+                }),
+                "resolution": (cls.RESOLUTION_OPTIONS, {
+                    "default": "1080P"
                 }),
                 "prompt_extend": ("BOOLEAN", {
                     "default": True
@@ -77,39 +84,52 @@ class WanT2IGenerator(WanAPIBase):
                     "default": 0,
                     "min": 0,
                     "max": 2147483647
-                })
+                }),
+                "output_dir": ("STRING", output_dir_options)
             }
         }
     
-    RETURN_TYPES = ("IMAGE",)
+    RETURN_TYPES = ("STRING",)  # Returns path to downloaded video file
     FUNCTION = "generate"
     CATEGORY = "Ru4ls/Wan"
     
-    def generate(self, model, prompt, size, negative_prompt="", prompt_extend=True, watermark=False, seed=0):
+    def generate(self, model, prompt, negative_prompt="", resolution="1080P", 
+                 prompt_extend=True, watermark=False, seed=0, output_dir="./videos"):
         # Check API key
         self.check_api_key()
         
-        # Set the selected model
-        self.model = model
-        
-        # Debug: Print API key status
-        print(f"Using API key: {self.api_key[:8]}...{self.api_key[-4:] if self.api_key else 'None'}")
-        print(f"Selected model: {self.model}")
-        print(f"Using API endpoint: {self.api_url}")
-        
-        # Prepare API payload for text-to-image generation - using the Wan format
+        # Prepare API payload for text-to-video generation
         payload = {
-            "model": self.model,
+            "model": model,
             "input": {
                 "prompt": prompt
             },
             "parameters": {
-                "size": size,
                 "prompt_extend": prompt_extend,
-                "watermark": watermark,
-                "n": 1  # Generate only one image
+                "watermark": watermark
             }
         }
+        
+        # Add resolution parameter based on selection
+        # Convert resolution tier to specific size values
+        resolution_sizes = {
+            "480P": {
+                "16:9": "832*480",
+                "9:16": "480*832",
+                "1:1": "624*624"
+            },
+            "1080P": {
+                "16:9": "1920*1080",
+                "9:16": "1080*1920",
+                "1:1": "1440*1440",
+                "4:3": "1632*1248",
+                "3:4": "1248*1632"
+            }
+        }
+        
+        # Default to 16:9 aspect ratio
+        if resolution in resolution_sizes:
+            payload["parameters"]["size"] = resolution_sizes[resolution]["16:9"]
         
         # Add optional parameters if they have non-default values
         if negative_prompt:
@@ -123,14 +143,6 @@ class WanT2IGenerator(WanAPIBase):
             "Content-Type": "application/json",
             "X-DashScope-Async": "enable"  # Wan requires async processing
         }
-        
-        # Debug: Print request details
-        print(f"Request headers: {{'Authorization': 'Bearer {self.api_key[:8]}...', 'Content-Type': 'application/json', 'X-DashScope-Async': 'enable'}}")
-        print(f"Request payload model: {payload['model']}")
-        print(f"Request payload prompt: {payload['input']['prompt'][:100]}...")
-        print(f"Request payload size: {payload['parameters']['size']}")
-        print(f"Request payload prompt_extend: {payload['parameters']['prompt_extend']}")
-        print(f"Request payload watermark: {payload['parameters']['watermark']}")
         
         try:
             # Make API request
@@ -152,8 +164,8 @@ class WanT2IGenerator(WanAPIBase):
                 print(f"Task created with ID: {task_id}, status: {task_status}")
                 
                 # Now we need to poll for the result
-                task_result = self.poll_task_result(task_id)
-                return task_result
+                task_result = self.poll_task_result(task_id, output_dir)
+                return (task_result,)  # Return path to downloaded video file
             else:
                 raise ValueError(f"Unexpected API response format: {result}")
                 
@@ -182,12 +194,12 @@ class WanT2IGenerator(WanAPIBase):
         except Exception as e:
             raise RuntimeError(f"Failed to process API response: {str(e)}")
     
-    def poll_task_result(self, task_id):
-        """Poll for task result until completion"""
+    def poll_task_result(self, task_id, output_dir="./videos"):
+        """Poll for task result until completion and download video"""
         import time
         
         # URL for querying task results
-        # To use Mainland China region, modify API_ENDPOINT_GET in wan_base.py
+        # To use Mainland China region, modify API_ENDPOINT_GET in core/base.py
         query_url = self.API_ENDPOINT_GET.format(task_id=task_id)
         
         headers = {
@@ -195,7 +207,7 @@ class WanT2IGenerator(WanAPIBase):
             "Content-Type": "application/json"
         }
         
-        max_attempts = 30  # Maximum polling attempts
+        max_attempts = 60  # Maximum polling attempts (may take longer for video)
         attempt = 0
         
         while attempt < max_attempts:
@@ -210,19 +222,46 @@ class WanT2IGenerator(WanAPIBase):
                 
                 if task_status == "SUCCEEDED":
                     # Task completed successfully
-                    results = result["output"]["results"]
-                    if len(results) > 0 and "url" in results[0]:
-                        image_url = results[0]["url"]
-                        # Download the generated image
-                        image_response = requests.get(image_url)
-                        image_response.raise_for_status()
+                    if "video_url" in result["output"]:
+                        video_url = result["output"]["video_url"]
                         
-                        # Convert to tensor
-                        image = Image.open(io.BytesIO(image_response.content))
-                        image_tensor = torch.from_numpy(np.array(image).astype(np.float32) / 255.0)
-                        image_tensor = image_tensor.unsqueeze(0)  # Add batch dimension
+                        # Download the video
+                        video_response = requests.get(video_url)
+                        video_response.raise_for_status()
                         
-                        return (image_tensor,)
+                        # Create a unique filename for the video
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        video_filename = f"wan_t2v_{timestamp}.mp4"
+                        
+                        # Handle output directory based on ComfyUI availability
+                        if COMFYUI_AVAILABLE and not output_dir.startswith(("./", "/")):
+                            # Use ComfyUI's output directory structure
+                            if output_dir.endswith("/"):
+                                output_dir = output_dir[:-1]
+                            full_output_folder = folder_paths.get_output_directory()
+                            output_path = os.path.join(full_output_folder, output_dir)
+                        else:
+                            # Resolve output directory path (existing logic)
+                            if output_dir.startswith("./"):
+                                # Relative to the node directory
+                                output_path = os.path.join(os.path.dirname(__file__), output_dir[2:])
+                            else:
+                                output_path = output_dir
+                        
+                        # Create output directory if it doesn't exist
+                        os.makedirs(output_path, exist_ok=True)
+                        
+                        # Save video to file
+                        video_path = os.path.join(output_path, video_filename)
+                        with open(video_path, "wb") as f:
+                            f.write(video_response.content)
+                        
+                        print(f"Video downloaded and saved to: {video_path}")
+                        # Return path relative to ComfyUI output directory if using ComfyUI
+                        if COMFYUI_AVAILABLE and not output_dir.startswith(("./", "/")):
+                            return os.path.join(output_dir, video_filename) if output_dir != "videos/" else video_filename
+                        else:
+                            return video_path  # Return full path
                     else:
                         raise ValueError(f"Unexpected API response format: {result}")
                         
@@ -234,7 +273,7 @@ class WanT2IGenerator(WanAPIBase):
                     
                 elif task_status in ["PENDING", "RUNNING"]:
                     # Task still in progress, wait and retry
-                    time.sleep(5)  # Wait 5 seconds before retrying
+                    time.sleep(10)  # Wait 10 seconds before retrying (video generation may take longer)
                     attempt += 1
                     continue
                     

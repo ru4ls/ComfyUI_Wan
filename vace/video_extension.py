@@ -1,5 +1,5 @@
 """
-Wan VACE Video Outpainting Node for ComfyUI
+Wan VACE Video Extension Node for ComfyUI
 """
 
 import os
@@ -16,7 +16,7 @@ import pathlib
 from datetime import datetime
 
 # Import the base class and COMFYUI_AVAILABLE flag
-from .wan_base import WanAPIBase, COMFYUI_AVAILABLE
+from ..core.base import WanAPIBase, COMFYUI_AVAILABLE
 
 # Try to import folder_paths if available
 try:
@@ -24,18 +24,27 @@ try:
 except ImportError:
     pass
 
-class WanVACEVideoOutpainting(WanAPIBase):
-    """Node for video outpainting using Wan VACE model"""
+class WanVACEVideoExtension(WanAPIBase):
+    """Node for video extension using Wan VACE model"""
     
     # Define available Wan VACE models
     MODEL_OPTIONS = [
         "wan2.1-vace-plus"    # Professional Edition
     ]
     
+    # Define control conditions for video extension
+    CONTROL_CONDITION_OPTIONS = [
+        "",                   # No control condition
+        "posebodyface",       # Extract facial expressions and body movements
+        "posebody",           # Extract body movements only
+        "depth",              # Extract composition and motion contours
+        "scribble"            # Extract line art structure
+    ]
+    
     def __init__(self):
         super().__init__()
         # Use the centralized API endpoint from the base class
-        # To use Mainland China region, modify API_ENDPOINT_POST_VIDEO in wan_base.py
+        # To use Mainland China region, modify API_ENDPOINT_POST_VIDEO in core/base.py
         self.api_url = self.API_ENDPOINT_POST_VIDEO
     
     @classmethod
@@ -61,37 +70,32 @@ class WanVACEVideoOutpainting(WanAPIBase):
                 }),
                 "prompt": ("STRING", {
                     "multiline": True,
-                    "default": "Outpaint the video with the following description"
-                }),
-                "video_url": ("STRING", {
-                    "default": "",
-                    "tooltip": "URL of the input video"
+                    "default": "Extend the video with the following description"
                 })
             },
             "optional": {
-                "top_scale": ("FLOAT", {
-                    "default": 1.0,
-                    "min": 1.0,
-                    "max": 2.0,
-                    "step": 0.1
+                "first_frame_url": ("STRING", {
+                    "default": "",
+                    "tooltip": "URL of the first frame image"
                 }),
-                "bottom_scale": ("FLOAT", {
-                    "default": 1.0,
-                    "min": 1.0,
-                    "max": 2.0,
-                    "step": 0.1
+                "last_frame_url": ("STRING", {
+                    "default": "",
+                    "tooltip": "URL of the last frame image"
                 }),
-                "left_scale": ("FLOAT", {
-                    "default": 1.0,
-                    "min": 1.0,
-                    "max": 2.0,
-                    "step": 0.1
+                "first_clip_url": ("STRING", {
+                    "default": "",
+                    "tooltip": "URL of the first video segment"
                 }),
-                "right_scale": ("FLOAT", {
-                    "default": 1.0,
-                    "min": 1.0,
-                    "max": 2.0,
-                    "step": 0.1
+                "last_clip_url": ("STRING", {
+                    "default": "",
+                    "tooltip": "URL of the last video segment"
+                }),
+                "video_url": ("STRING", {
+                    "default": "",
+                    "tooltip": "URL of the reference video for motion features"
+                }),
+                "control_condition": (cls.CONTROL_CONDITION_OPTIONS, {
+                    "default": ""
                 }),
                 "seed": ("INT", {
                     "default": 0,
@@ -112,9 +116,9 @@ class WanVACEVideoOutpainting(WanAPIBase):
     FUNCTION = "generate"
     CATEGORY = "Ru4ls/Wan/VACE"
     
-    def generate(self, model, prompt, video_url, top_scale=1.0, bottom_scale=1.0, 
-                 left_scale=1.0, right_scale=1.0, seed=0, prompt_extend=False, 
-                 watermark=False, output_dir="./videos"):
+    def generate(self, model, prompt, first_frame_url="", last_frame_url="", 
+                 first_clip_url="", last_clip_url="", video_url="", control_condition="",
+                 seed=0, prompt_extend=False, watermark=False, output_dir="./videos"):
         
         # Check API key
         self.check_api_key()
@@ -123,9 +127,8 @@ class WanVACEVideoOutpainting(WanAPIBase):
         payload = {
             "model": model,
             "input": {
-                "function": "video_outpainting",
-                "prompt": prompt,
-                "video_url": video_url
+                "function": "video_extension",
+                "prompt": prompt
             },
             "parameters": {
                 "prompt_extend": prompt_extend,
@@ -137,15 +140,29 @@ class WanVACEVideoOutpainting(WanAPIBase):
         if seed > 0:
             payload["parameters"]["seed"] = seed
             
-        # Add scale parameters if not default
-        if top_scale != 1.0:
-            payload["parameters"]["top_scale"] = top_scale
-        if bottom_scale != 1.0:
-            payload["parameters"]["bottom_scale"] = bottom_scale
-        if left_scale != 1.0:
-            payload["parameters"]["left_scale"] = left_scale
-        if right_scale != 1.0:
-            payload["parameters"]["right_scale"] = right_scale
+        # Add control condition if provided
+        if control_condition:
+            payload["parameters"]["control_condition"] = control_condition
+            
+        # Add first_frame_url if provided
+        if first_frame_url:
+            payload["input"]["first_frame_url"] = first_frame_url
+            
+        # Add last_frame_url if provided
+        if last_frame_url:
+            payload["input"]["last_frame_url"] = last_frame_url
+            
+        # Add first_clip_url if provided
+        if first_clip_url:
+            payload["input"]["first_clip_url"] = first_clip_url
+            
+        # Add last_clip_url if provided
+        if last_clip_url:
+            payload["input"]["last_clip_url"] = last_clip_url
+            
+        # Add video_url if provided
+        if video_url:
+            payload["input"]["video_url"] = video_url
         
         # Set headers according to DashScope documentation
         headers = {
@@ -210,7 +227,7 @@ class WanVACEVideoOutpainting(WanAPIBase):
         import time
         
         # URL for querying task results
-        # To use Mainland China region, modify API_ENDPOINT_GET in wan_base.py
+        # To use Mainland China region, modify API_ENDPOINT_GET in core/base.py
         query_url = self.API_ENDPOINT_GET.format(task_id=task_id)
         
         headers = {
@@ -242,7 +259,7 @@ class WanVACEVideoOutpainting(WanAPIBase):
                         
                         # Create a unique filename for the video
                         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        video_filename = f"wan_vace_video_outpainting_{timestamp}.mp4"
+                        video_filename = f"wan_vace_video_extension_{timestamp}.mp4"
                         
                         # Handle output directory based on ComfyUI availability
                         if COMFYUI_AVAILABLE and not output_dir.startswith(("./", "/")):

@@ -12,7 +12,7 @@ import pathlib
 from datetime import datetime
 
 # Import the base class and COMFYUI_AVAILABLE flag
-from .wan_base import WanAPIBase, COMFYUI_AVAILABLE
+from ..core.base import WanAPIBase, COMFYUI_AVAILABLE
 
 # Try to import folder_paths if available
 try:
@@ -20,24 +20,27 @@ try:
 except ImportError:
     pass
 
-class WanII2VGenerator(WanAPIBase):
-    """Node for image-to-video generation using first and last frames with Wan model"""
+class WanI2VGenerator(WanAPIBase):
+    """Node for image-to-video generation using Wan model"""
     
-    # Define available Wan ii2v models
+    # Define available Wan i2v models
     MODEL_OPTIONS = [
-        "wan2.1-kf2v-plus"    # Professional Edition
+        "wan2.2-i2v-flash",  # Speed Edition
+        "wan2.2-i2v-plus"    # Professional Edition
     ]
     
-    # Define allowed resolutions for Wan ii2v models
+    # Define allowed resolutions for Wan i2v models (using uppercase P as required by API)
     RESOLUTION_OPTIONS = [
-        "720P"
+        "480P",
+        "720P",
+        "1080P"
     ]
     
     def __init__(self):
         super().__init__()
         # Use the centralized API endpoint from the base class
-        # To use Mainland China region, modify API_ENDPOINT_POST_II2V in wan_base.py
-        self.api_url = self.API_ENDPOINT_POST_II2V
+        # To use Mainland China region, modify API_ENDPOINT_POST_VIDEO in core/base.py
+        self.api_url = self.API_ENDPOINT_POST_VIDEO
     
     @classmethod
     def INPUT_TYPES(cls):
@@ -58,17 +61,14 @@ class WanII2VGenerator(WanAPIBase):
         return {
             "required": {
                 "model": (cls.MODEL_OPTIONS, {
-                    "default": "wan2.1-kf2v-plus"
+                    "default": "wan2.2-i2v-flash"
                 }),
-                "first_frame_url": ("STRING", {
-                    "default": "https://example.com/first_frame.png"
-                }),
-                "last_frame_url": ("STRING", {
-                    "default": "https://example.com/last_frame.png"
+                "image_url": ("STRING", {
+                    "default": "https://example.com/your_image.png"
                 }),
                 "prompt": ("STRING", {
                     "multiline": True,
-                    "default": "A black kitten looks up at the sky curiously, the camera gradually rises from eye level, and finally shoots from a top-down angle to capture the kitten's curious eyes."
+                    "default": "A cat running on the grass"
                 })
             },
             "optional": {
@@ -98,18 +98,17 @@ class WanII2VGenerator(WanAPIBase):
     FUNCTION = "generate"
     CATEGORY = "Ru4ls/Wan"
     
-    def generate(self, model, first_frame_url, last_frame_url, prompt, negative_prompt="", 
-                 resolution="720P", prompt_extend=True, watermark=False, seed=0, output_dir="./videos"):
+    def generate(self, model, image_url, prompt, negative_prompt="", resolution="720P", 
+                 prompt_extend=True, watermark=False, seed=0, output_dir="./videos"):
         # Check API key
         self.check_api_key()
         
-        # Prepare API payload for image-to-video generation with first and last frames
+        # Prepare API payload for image-to-video generation
         payload = {
             "model": model,
             "input": {
-                "first_frame_url": first_frame_url,
-                "last_frame_url": last_frame_url,
-                "prompt": prompt
+                "prompt": prompt,
+                "img_url": image_url
             },
             "parameters": {
                 "resolution": resolution,
@@ -186,7 +185,7 @@ class WanII2VGenerator(WanAPIBase):
         import time
         
         # URL for querying task results
-        # To use Mainland China region, modify API_ENDPOINT_GET in wan_base.py
+        # To use Mainland China region, modify API_ENDPOINT_GET in core/base.py
         query_url = self.API_ENDPOINT_GET.format(task_id=task_id)
         
         headers = {
@@ -218,7 +217,7 @@ class WanII2VGenerator(WanAPIBase):
                         
                         # Create a unique filename for the video
                         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        video_filename = f"wan_ii2v_{timestamp}.mp4"
+                        video_filename = f"wan_i2v_{timestamp}.mp4"
                         
                         # Handle output directory based on ComfyUI availability
                         if COMFYUI_AVAILABLE and not output_dir.startswith(("./", "/")):
