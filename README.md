@@ -13,6 +13,7 @@ This is a direct integration with Alibaba Cloud's Model Studio service, not a th
 - **State-of-the-Art Models**: Access to the latest Wan models with continuous updates:
   - **Text-to-Image**: wan2.2-t2i-flash (Speed Edition), wan2.2-t2i-plus (Professional Edition)
   - **Image-to-Video**: wan2.2-i2v-flash (Speed Edition), wan2.2-i2v-plus (Professional Edition)
+  - **Image-to-Video Effects**: wan2.1-i2v-plus (Professional Edition)
   - **Text-to-Video**: wan2.2-t2v-plus (Professional Edition)
   - **Image-to-Video (First/Last Frames)**: wan2.1-kf2v-plus (Professional Edition)
   - **Universal Video Editing (VACE)**: wan2.1-vace-plus (Professional Edition) - Split into 5 specialized nodes for better usability
@@ -43,6 +44,7 @@ All API endpoints are centrally managed in the `core/base.py` file, making it ea
 |-----------|----------|-------|-------------|
 | Wan Text-to-Image Generator | T2I | wan2.2-t2i-flash, wan2.2-t2i-plus | Generate images from text prompts with multiple resolution options. Returns both image tensor and image URL. |
 | Wan Image-to-Video Generator | I2V | wan2.2-i2v-flash, wan2.2-i2v-plus | Create 5-second videos from a single image and text prompt. Returns both video file path and video URL. |
+| Wan Image-to-Video Effect Generator | I2V Effect | wan2.1-i2v-plus | Generate videos with predefined effects from a single image. Returns both video file path and video URL. |
 | Wan Text-to-Video Generator | T2V | wan2.2-t2v-plus | Generate 5-second videos directly from text prompts. Returns both video file path and video URL. |
 | Wan Image-to-Video (First/Last Frame) Generator | II2V | wan2.1-kf2v-plus | Create 5-second videos using both first and last frame images. Returns both video file path and video URL. |
 | Wan VACE - Multi-Image Reference | VACE | wan2.1-vace-plus | Generate videos from multiple reference images. Returns both video file path and video URL. |
@@ -50,6 +52,7 @@ All API endpoints are centrally managed in the `core/base.py` file, making it ea
 | Wan VACE - Local Video Editing | VACE | wan2.1-vace-plus | Locally edit specific areas of videos. Returns both video file path and video URL. |
 | Wan VACE - Video Extension | VACE | wan2.1-vace-plus | Extend videos with additional content. Returns both video file path and video URL. |
 | Wan VACE - Video Outpainting | VACE | wan2.1-vace-plus | Scale videos in different directions. Returns both video file path and video URL. |
+| Wan Image-to-Video Effect Generator | I2V Effect | wan2.1-i2v-plus | Generate videos with predefined effects from a single image. Returns both video file path and video URL. |
 
 ## Features
 
@@ -58,6 +61,7 @@ All API endpoints are centrally managed in the `core/base.py` file, making it ea
 - **Specialized VACE Nodes**: The Universal Video Editing (VACE) model has been split into 5 specialized nodes for better usability and focused functionality
 - **Powered by Alibaba Cloud's Advanced Wan Models**: Access to state-of-the-art models with continuous updates
 - **Dual Output Support**: All video generation nodes now return both local file paths and remote URLs for flexible workflow integration
+- **Video Effects Generation**: Create videos with predefined effects using the Image-to-Video Effect Generator node
 
 ## Installation
 
@@ -289,6 +293,31 @@ This node scales videos in different directions using the Wan VACE model.
 
 **Note**: To preview the generated video in ComfyUI, connect the output of this node to a "Load Video (Path)" node from ComfyUI-VideoHelperSuite.
 
+### Wan Image-to-Video Effect Generator
+This node generates videos with predefined effects from a single image using the Wan model.
+
+**Important**: This feature is only supported in the Mainland China region.
+
+**Parameters:**
+- **model**: Select the Wan model to use (wan2.1-i2v-plus)
+- **image_url** (required): Publicly accessible URL to the image for the first frame of the video
+- **template** (required): Predefined effect template to apply (e.g., "flying", "rose", "dance1", etc.)
+- **region**: Select the region (mainland_china for effects)
+- **resolution**: Output video resolution (480P, 720P, 1080P)
+- **seed**: Random seed for generation (0 for random)
+- **output_dir**: Directory where the generated video will be saved. Can be browsed and selected in ComfyUI.
+
+**Available Templates:**
+- squish, rotation, poke, inflate, dissolve, carousel, singleheart
+- dance1, dance2, dance3, mermaid, graduation, dragon, money
+- flying, rose, crystalrose, hug, frenchkiss, coupleheart
+
+**Return Values:**
+- **video_file_path**: Path to the downloaded video file on your local system
+- **video_url**: URL of the generated video on Alibaba Cloud's servers
+
+**Note**: To preview the generated video in ComfyUI, connect the output of this node to a "Load Video (Path)" node from ComfyUI-VideoHelperSuite.
+
 ## Examples
 
 Prompt: "Generate an image of a cat"
@@ -306,6 +335,7 @@ The API key is loaded from the `DASHSCOPE_API_KEY` environment variable and neve
 - Updated `.env.template` to include separate API key variables for international and Mainland China regions
 - Modified `core/base.py` to support automatic endpoint and API key selection based on region
 - Updated all generator nodes (T2I, I2V, T2V, II2V) and VACE nodes to include region selection
+- Added new "Wan Image-to-Video Effect Generator" node for creating videos with predefined effects
 - Improved documentation with updated setup instructions and regional support information
 
 ### v1.0.0 - Initial Release
