@@ -19,41 +19,70 @@ except ImportError:
     print("folder_paths not available, using default directory handling")
 
 # Load environment variables from .env file
-# Try to load .env file from the current directory first
-env_path = pathlib.Path(__file__).parent / '.env'
+# Try multiple locations for the .env file:
+# 1. config/.env (our preferred location)
+# 2. .env in the project root (for backward compatibility)
+# 3. Fallback to default behavior (current working directory)
+
+# Check config/.env first (go up one level to project root, then into config)
+env_path = pathlib.Path(__file__).parent.parent / 'config' / '.env'
 if env_path.exists():
+    print(f"Loading environment variables from: {env_path}")
     load_dotenv(dotenv_path=env_path)
 else:
-    # Fallback to default behavior
-    load_dotenv()
+    # Check .env in project root (go up one level to project root)
+    env_path = pathlib.Path(__file__).parent.parent / '.env'
+    if env_path.exists():
+        print(f"Loading environment variables from: {env_path}")
+        load_dotenv(dotenv_path=env_path)
+    else:
+        # Fallback to default behavior
+        print("No .env file found, using default environment variable loading")
+        load_dotenv()
 
 class WanAPIBase:
     """Base class for Wan API interactions"""
     
-    # API endpoints - International region (default)
-    # To use Mainland China region, change these URLs:
-    # Video POST: https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis
-    # II2V POST: https://dashscope.aliyuncs.com/api/v1/services/aigc/image2video/video-synthesis
-    # T2I POST: https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis
-    # GET: https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}
-    API_ENDPOINT_POST_VIDEO = "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis"
-    API_ENDPOINT_POST_II2V = "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/image2video/video-synthesis"
-    API_ENDPOINT_POST_T2I = "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis"
-    API_ENDPOINT_GET = "https://dashscope-intl.aliyuncs.com/api/v1/tasks/{task_id}"
+    # API endpoints for different regions
+    ENDPOINTS = {
+        "international": {
+            "video_post": "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis",
+            "ii2v_post": "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/image2video/video-synthesis",
+            "t2i_post": "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis",
+            "get": "https://dashscope-intl.aliyuncs.com/api/v1/tasks/{task_id}"
+        },
+        "mainland_china": {
+            "video_post": "https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis",
+            "ii2v_post": "https://dashscope.aliyuncs.com/api/v1/services/aigc/image2video/video-synthesis",
+            "t2i_post": "https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis",
+            "get": "https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}"
+        }
+    }
     
     def __init__(self):
+        # Load API keys for different regions
         self.api_key = os.getenv('DASHSCOPE_API_KEY')
+        self.api_key_china = os.getenv('DASHSCOPE_API_KEY_CHINA')
         # Strip any extra quotes or whitespace
         if self.api_key:
             self.api_key = self.api_key.strip().strip('"\'')
-        print(f"Initialized WanAPIBase with API key: {self.api_key[:8] if self.api_key else 'None'}...{self.api_key[-4:] if self.api_key else ''}")
-        
-    def check_api_key(self):
-        """Check if API key is set in environment variables"""
-        if not self.api_key:
+        if self.api_key_china:
+            self.api_key_china = self.api_key_china.strip().strip('"\'')
+        print(f"Initialized WanAPIBase with API keys: international={self.api_key[:8] if self.api_key else 'None'}...{self.api_key[-4:] if self.api_key else ''}, china={self.api_key_china[:8] if self.api_key_china else 'None'}...{self.api_key_china[-4:] if self.api_key_china else ''}")
+    
+    def check_api_key(self, region="international"):
+        """Check if appropriate API key is set in environment variables"""
+        if region == "mainland_china" and self.api_key_china:
+            return self.api_key_china
+        elif self.api_key:
+            return self.api_key
+        else:
             raise ValueError("DASHSCOPE_API_KEY environment variable not set. "
                              "Please set it before using this node.")
-        return self.api_key
+    
+    def get_api_endpoints(self, region="international"):
+        """Get the appropriate API endpoints based on region"""
+        return self.ENDPOINTS.get(region, self.ENDPOINTS["international"])
     
     def prepare_images(self, images):
         """Convert images to base64 strings for API submission"""

@@ -40,11 +40,14 @@ class WanT2IGenerator(WanAPIBase):
         "512*1440"    # Tall portrait
     ]
     
+    # Define region options
+    REGION_OPTIONS = [
+        "international",
+        "mainland_china"
+    ]
+    
     def __init__(self):
         super().__init__()
-        # Use the centralized API endpoint from the base class
-        # To use Mainland China region, modify API_ENDPOINT_POST_T2I in core/base.py
-        self.api_url = self.API_ENDPOINT_POST_T2I
         self.model = "wan2.2-t2i-flash"  # Using Wan Speed Edition as default
     
     @classmethod
@@ -60,6 +63,9 @@ class WanT2IGenerator(WanAPIBase):
                 }),
                 "size": (cls.SIZE_OPTIONS, {
                     "default": "1024*1024"
+                }),
+                "region": (cls.REGION_OPTIONS, {
+                    "default": "international"
                 })
             },
             "optional": {
@@ -86,17 +92,22 @@ class WanT2IGenerator(WanAPIBase):
     FUNCTION = "generate"
     CATEGORY = "Ru4ls/Wan"
     
-    def generate(self, model, prompt, size, negative_prompt="", prompt_extend=True, watermark=False, seed=0):
-        # Check API key
-        self.check_api_key()
+    def generate(self, model, prompt, size, region, negative_prompt="", prompt_extend=True, watermark=False, seed=0):
+        # Check API key based on region
+        api_key = self.check_api_key(region)
+        
+        # Get the appropriate API endpoints based on region
+        endpoints = self.get_api_endpoints(region)
+        api_url = endpoints["t2i_post"]
         
         # Set the selected model
         self.model = model
         
         # Debug: Print API key status
-        print(f"Using API key: {self.api_key[:8]}...{self.api_key[-4:] if self.api_key else 'None'}")
+        print(f"Using API key: {api_key[:8]}...{api_key[-4:] if api_key else 'None'}")
         print(f"Selected model: {self.model}")
-        print(f"Using API endpoint: {self.api_url}")
+        print(f"Using API endpoint: {api_url}")
+        print(f"Selected region: {region}")
         
         # Prepare API payload for text-to-image generation - using the Wan format
         payload = {
@@ -120,13 +131,13 @@ class WanT2IGenerator(WanAPIBase):
         
         # Set headers according to DashScope documentation
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "X-DashScope-Async": "enable"  # Wan requires async processing
         }
         
         # Debug: Print request details
-        print(f"Request headers: {{'Authorization': 'Bearer {self.api_key[:8]}...', 'Content-Type': 'application/json', 'X-DashScope-Async': 'enable'}}")
+        print(f"Request headers: {{'Authorization': 'Bearer {api_key[:8]}...', 'Content-Type': 'application/json', 'X-DashScope-Async': 'enable'}}")
         print(f"Request payload model: {payload['model']}")
         print(f"Request payload prompt: {payload['input']['prompt'][:100]}...")
         print(f"Request payload size: {payload['parameters']['size']}")
@@ -135,8 +146,8 @@ class WanT2IGenerator(WanAPIBase):
         
         try:
             # Make API request
-            print(f"Making API request to {self.api_url}")
-            response = requests.post(self.api_url, headers=headers, json=payload)
+            print(f"Making API request to {api_url}")
+            response = requests.post(api_url, headers=headers, json=payload)
             print(f"Response status code: {response.status_code}")
             if hasattr(response, 'text'):
                 print(f"Response text: {response.text[:500]}...")  # Print first 500 chars
@@ -153,7 +164,7 @@ class WanT2IGenerator(WanAPIBase):
                 print(f"Task created with ID: {task_id}, status: {task_status}")
                 
                 # Now we need to poll for the result
-                task_result = self.poll_task_result(task_id)
+                task_result = self.poll_task_result(task_id, region)
                 return task_result
             else:
                 raise ValueError(f"Unexpected API response format: {result}")
@@ -183,16 +194,19 @@ class WanT2IGenerator(WanAPIBase):
         except Exception as e:
             raise RuntimeError(f"Failed to process API response: {str(e)}")
     
-    def poll_task_result(self, task_id):
+    def poll_task_result(self, task_id, region):
         """Poll for task result until completion"""
         import time
         
-        # URL for querying task results
-        # To use Mainland China region, modify API_ENDPOINT_GET in core/base.py
-        query_url = self.API_ENDPOINT_GET.format(task_id=task_id)
+        # Get the appropriate API endpoints based on region
+        endpoints = self.get_api_endpoints(region)
+        query_url = endpoints["get"].format(task_id=task_id)
+        
+        # Check API key based on region
+        api_key = self.check_api_key(region)
         
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
         }
         
