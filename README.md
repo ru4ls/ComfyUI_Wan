@@ -29,34 +29,13 @@ This is a direct integration with Alibaba Cloud's Model Studio service, not a th
 
 ## Regional Support
 
-This node supports both international and Mainland China Alibaba Cloud regions. You can now easily select the region directly in each node's parameters instead of manually modifying the code:
-
-- **International Region** (default):
-  - Video POST: `https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis`
-  - II2V POST: `https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/image2video/video-synthesis`
-  - T2I POST: `https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis`
-  - GET: `https://dashscope-intl.aliyuncs.com/api/v1/tasks/{task_id}`
-
-- **Mainland China Region**:
-  - Video POST: `https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis`
-  - II2V POST: `https://dashscope.aliyuncs.com/api/v1/services/aigc/image2video/video-synthesis`
-  - T2I POST: `https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis`
-  - GET: `https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}`
-
-To switch regions, simply select "international" or "mainland_china" from the "region" dropdown parameter available in all nodes. The node will automatically use the appropriate API endpoint and API key for the selected region.
+This node supports both international and Mainland China Alibaba Cloud regions. To switch regions, simply select "international" or "mainland_china" from the "region" dropdown parameter available in all nodes. The node will automatically use the appropriate API endpoint and API key for the selected region.
 
 **Note**: If you want to use the Mainland China region, you must have a separate API key for that region. Make sure to set both `DASHSCOPE_API_KEY` (for international) and `DASHSCOPE_API_KEY_CHINA` (for Mainland China) in your `.env` file.
 
 ## Centralized Endpoint Management
 
-All API endpoints are centrally managed in the `core/base.py` file, making it easy to maintain and switch between regions. This approach ensures consistency across all nodes and simplifies future updates. The centralized management includes:
-
-- `API_ENDPOINT_POST_VIDEO`: For general video generation nodes (I2V, T2V, VACE)
-- `API_ENDPOINT_POST_II2V`: For image-to-video with first/last frames (II2V)
-- `API_ENDPOINT_POST_T2I`: For text-to-image generation (T2I)
-- `API_ENDPOINT_GET`: For task result polling (shared across all nodes)
-
-With the new region selection feature, these endpoints are automatically selected based on the region parameter chosen in each node, eliminating the need to manually modify the code.
+All API endpoints are centrally managed in the `core/base.py` file, making it easy to maintain and switch between regions. This approach ensures consistency across all nodes and simplifies future updates.
 
 ## Available Nodes
 
@@ -123,31 +102,6 @@ DASHSCOPE_API_KEY_CHINA=your_china_api_key_here
 ```
 
 If you only use the international region, you only need to set `DASHSCOPE_API_KEY`. If you plan to use both regions, you should set both keys. The nodes will automatically use the appropriate key based on the region you select.
-
-## Usage
-
-### Text-to-Image Generation
-
-1. Add the "Wan Text-to-Image Generator" node to your workflow
-2. Select the desired model (wan2.2-t2i-flash or wan2.2-t2i-plus)
-3. Connect a text input with your prompt
-4. Configure parameters as needed (seed, resolution, etc.)
-5. Execute the node
-
-### Image-to-Video Generation
-
-1. Add the "Wan Image-to-Video Generator" node to your workflow
-2. Provide a publicly accessible URL to the image you want to use as the first frame of your video
-3. Select the desired model (wan2.2-i2v-flash or wan2.2-i2v-plus)
-4. Connect a text input with your prompt describing the video content
-5. Optionally configure the output directory where the video will be saved (can be browsed in ComfyUI)
-6. Execute the node
-7. The node will return both a path to the downloaded video file and the video URL
-8. To preview the video, connect the output to a "Load Video (Path)" node from ComfyUI-VideoHelperSuite
-9. To use the video URL directly (e.g., for sharing or further processing), you can connect the video_url output to appropriate nodes
-
-**Note**: The image URL must be publicly accessible (not behind authentication or on localhost). 
-You can use services like Imgur, cloud storage providers, or your own web server to host the image.
 
 ## Node Parameters
 
@@ -340,38 +294,6 @@ This node scales videos in different directions using the Wan VACE model.
 Prompt: "Generate an image of a cat"
 
 ![Text-to-Image Example](media/ComfyUI_Wan-t2i.png)
-
-### Text-to-Video Generation
-1. Add the "Wan Text-to-Video Generator" node to your workflow
-2. Select the desired model (wan2.2-t2v-plus) and other parameters
-3. Connect a text input with your prompt (e.g., "A kitten running in the moonlight")
-4. Optionally configure the output directory where the video will be saved (can be browsed in ComfyUI)
-5. Execute the node
-6. The node will return both a path to the downloaded video file and the video URL
-7. To preview the video, connect the video_file_path output to a "Load Video (Path)" node from ComfyUI-VideoHelperSuite
-8. To use the video URL directly (e.g., for sharing or further processing), you can connect the video_url output to appropriate nodes
-
-
-### Image-to-Video Generation
-1. First frame: Provide a URL to an image (e.g., "https://example.com/your_image.png")
-2. Prompt: e.g "a cat running in the grass"
-3. Output directory: "./videos" (default) or any custom path
-4. To preview: Connect the video_file_path output to a "Load Video (Path)" node from ComfyUI-VideoHelperSuite
-5. To share or process further: Use the video_url output directly in your workflow
-
-
-### Image-to-Video (First/Last Frame) Generation
-1. Add the "Wan Image-to-Video (First/Last Frame) Generator" node to your workflow
-2. Select the desired model (wan2.1-kf2v-plus)
-3. Provide publicly accessible URLs to the first and last frame images,  and other parameters
-4. Prompt: e.g "a cat running in the grass"Realistic style. A black kitten looks up at the sky curiously. The camera gradually rises from eye level, ending with a top-down shot of the kitten's curious eyes."
-5. Optionally configure the output directory where the video will be saved (can be browsed in ComfyUI)
-6. Execute the node
-7. The node will return both a path to the downloaded video file and the video URL
-8. To preview the video, connect the video_file_path output to a "Load Video (Path)" node from ComfyUI-VideoHelperSuite
-9. To use the video URL directly (e.g., for sharing or further processing), you can connect the video_url output to appropriate nodes
-
-![Image-first-last-frame-to-Video Example](media/ComfyUI_Wan-ii2v.png)
 
 ## Security
 
