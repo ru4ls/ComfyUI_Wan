@@ -81,7 +81,8 @@ class WanT2IGenerator(WanAPIBase):
             }
         }
     
-    RETURN_TYPES = ("IMAGE",)
+    RETURN_TYPES = ("IMAGE", "STRING")  # Returns image tensor and image URL
+    RETURN_NAMES = ("image", "image_url")
     FUNCTION = "generate"
     CATEGORY = "Ru4ls/Wan"
     
@@ -222,7 +223,8 @@ class WanT2IGenerator(WanAPIBase):
                         image_tensor = torch.from_numpy(np.array(image).astype(np.float32) / 255.0)
                         image_tensor = image_tensor.unsqueeze(0)  # Add batch dimension
                         
-                        return (image_tensor,)
+                        # Return both the image tensor and the image URL
+                        return (image_tensor, image_url)
                     else:
                         raise ValueError(f"Unexpected API response format: {result}")
                         
