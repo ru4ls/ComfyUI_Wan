@@ -89,7 +89,8 @@ class WanT2VGenerator(WanAPIBase):
             }
         }
     
-    RETURN_TYPES = ("STRING",)  # Returns path to downloaded video file
+    RETURN_TYPES = ("STRING", "STRING")  # Returns path to downloaded video file and video URL
+    RETURN_NAMES = ("video_file_path", "video_url")
     FUNCTION = "generate"
     CATEGORY = "Ru4ls/Wan"
     
@@ -165,7 +166,7 @@ class WanT2VGenerator(WanAPIBase):
                 
                 # Now we need to poll for the result
                 task_result = self.poll_task_result(task_id, output_dir)
-                return (task_result,)  # Return path to downloaded video file
+                return task_result  # Return both path to downloaded video file and video URL
             else:
                 raise ValueError(f"Unexpected API response format: {result}")
                 
@@ -259,9 +260,11 @@ class WanT2VGenerator(WanAPIBase):
                         print(f"Video downloaded and saved to: {video_path}")
                         # Return path relative to ComfyUI output directory if using ComfyUI
                         if COMFYUI_AVAILABLE and not output_dir.startswith(("./", "/")):
-                            return os.path.join(output_dir, video_filename) if output_dir != "videos/" else video_filename
+                            return_path = os.path.join(output_dir, video_filename) if output_dir != "videos/" else video_filename
                         else:
-                            return video_path  # Return full path
+                            return_path = video_path  # Return full path
+                        # Return both the file path and the video URL
+                        return (return_path, video_url)
                     else:
                         raise ValueError(f"Unexpected API response format: {result}")
                         
