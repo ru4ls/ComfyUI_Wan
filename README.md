@@ -29,7 +29,7 @@ This is a direct integration with Alibaba Cloud's Model Studio service, not a th
 
 ## Regional Support
 
-This node supports both international and Mainland China Alibaba Cloud regions. By default, it uses the international region endpoints, but you can easily switch to Mainland China endpoints by modifying the variables in `core/base.py`:
+This node supports both international and Mainland China Alibaba Cloud regions. You can now easily select the region directly in each node's parameters instead of manually modifying the code:
 
 - **International Region** (default):
   - Video POST: `https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis`
@@ -43,7 +43,9 @@ This node supports both international and Mainland China Alibaba Cloud regions. 
   - T2I POST: `https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis`
   - GET: `https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}`
 
-To switch regions, simply modify the `API_ENDPOINT_POST_VIDEO`, `API_ENDPOINT_POST_II2V`, `API_ENDPOINT_POST_T2I`, and `API_ENDPOINT_GET` variables in `core/base.py` to the corresponding Mainland China endpoints listed above.
+To switch regions, simply select "international" or "mainland_china" from the "region" dropdown parameter available in all nodes. The node will automatically use the appropriate API endpoint and API key for the selected region.
+
+**Note**: If you want to use the Mainland China region, you must have a separate API key for that region. Make sure to set both `DASHSCOPE_API_KEY` (for international) and `DASHSCOPE_API_KEY_CHINA` (for Mainland China) in your `.env` file.
 
 ## Centralized Endpoint Management
 
@@ -53,6 +55,8 @@ All API endpoints are centrally managed in the `core/base.py` file, making it ea
 - `API_ENDPOINT_POST_II2V`: For image-to-video with first/last frames (II2V)
 - `API_ENDPOINT_POST_T2I`: For text-to-image generation (T2I)
 - `API_ENDPOINT_GET`: For task result polling (shared across all nodes)
+
+With the new region selection feature, these endpoints are automatically selected based on the region parameter chosen in each node, eliminating the need to manually modify the code.
 
 ## Available Nodes
 
@@ -108,10 +112,17 @@ If you're using a workspace other than your default workspace, you may need to a
 
 ### Set Environment Variable
 
-Copy the `.env.template` file to `.env` in your ComfyUI root directory and replace the placeholder with your actual API key:
+Copy the `.env.template` file to `.env` in your `config` directory and replace the placeholders with your actual API keys:
+
 ```
+# For international region (default)
 DASHSCOPE_API_KEY=your_actual_api_key_here
+
+# For mainland China region (optional, if you have a separate key for China)
+DASHSCOPE_API_KEY_CHINA=your_china_api_key_here
 ```
+
+If you only use the international region, you only need to set `DASHSCOPE_API_KEY`. If you plan to use both regions, you should set both keys. The nodes will automatically use the appropriate key based on the region you select.
 
 ## Usage
 
@@ -326,14 +337,13 @@ This node scales videos in different directions using the Wan VACE model.
 
 ## Examples
 
-### Text-to-Image Generation
-Prompt: "Generate an image of a cat swimming under the water"
+Prompt: "Generate an image of a cat"
 
-![Text-to-Image Example](media/ComfyUI_Wan-t2i-new.png)
+![Text-to-Image Example](media/ComfyUI_Wan-t2i.png)
 
 ### Text-to-Video Generation
 1. Add the "Wan Text-to-Video Generator" node to your workflow
-2. Select the desired model (wan2.2-t2v-plus)
+2. Select the desired model (wan2.2-t2v-plus) and other parameters
 3. Connect a text input with your prompt (e.g., "A kitten running in the moonlight")
 4. Optionally configure the output directory where the video will be saved (can be browsed in ComfyUI)
 5. Execute the node
@@ -341,22 +351,20 @@ Prompt: "Generate an image of a cat swimming under the water"
 7. To preview the video, connect the video_file_path output to a "Load Video (Path)" node from ComfyUI-VideoHelperSuite
 8. To use the video URL directly (e.g., for sharing or further processing), you can connect the video_url output to appropriate nodes
 
-![Text-to-Video Example](media/ComfyUI_Wan-t2v.png)
 
 ### Image-to-Video Generation
 1. First frame: Provide a URL to an image (e.g., "https://example.com/your_image.png")
-2. Prompt: "a cat running in the grass"
+2. Prompt: e.g "a cat running in the grass"
 3. Output directory: "./videos" (default) or any custom path
 4. To preview: Connect the video_file_path output to a "Load Video (Path)" node from ComfyUI-VideoHelperSuite
 5. To share or process further: Use the video_url output directly in your workflow
 
-![Image-to-Video Example](media/ComfyUI_Wan-i2v-new.png)
 
 ### Image-to-Video (First/Last Frame) Generation
 1. Add the "Wan Image-to-Video (First/Last Frame) Generator" node to your workflow
 2. Select the desired model (wan2.1-kf2v-plus)
-3. Provide publicly accessible URLs to the first and last frame images
-4. Prompt: "a cat running in the grass"Realistic style. A black kitten looks up at the sky curiously. The camera gradually rises from eye level, ending with a top-down shot of the kitten's curious eyes."
+3. Provide publicly accessible URLs to the first and last frame images,  and other parameters
+4. Prompt: e.g "a cat running in the grass"Realistic style. A black kitten looks up at the sky curiously. The camera gradually rises from eye level, ending with a top-down shot of the kitten's curious eyes."
 5. Optionally configure the output directory where the video will be saved (can be browsed in ComfyUI)
 6. Execute the node
 7. The node will return both a path to the downloaded video file and the video URL
@@ -368,6 +376,22 @@ Prompt: "Generate an image of a cat swimming under the water"
 ## Security
 
 The API key is loaded from the `DASHSCOPE_API_KEY` environment variable and never stored in files or code, following Alibaba Cloud security best practices.
+
+## Changelog
+
+### v1.1.0 - Region Selection Feature
+- Added region selection parameter to all nodes, allowing users to easily switch between international and Mainland China regions
+- Updated `.env.template` to include separate API key variables for international and Mainland China regions
+- Modified `core/base.py` to support automatic endpoint and API key selection based on region
+- Updated all generator nodes (T2I, I2V, T2V, II2V) and VACE nodes to include region selection
+- Improved documentation with updated setup instructions and regional support information
+
+### v1.0.0 - Initial Release
+- Initial release with full Wan model integration
+- Support for Text-to-Image, Image-to-Video, Text-to-Video, and Image-to-Video (First/Last Frame) generation
+- Full VACE model integration with 5 specialized nodes for video editing
+- Dual output support (local file paths and remote URLs) for all video generation nodes
+- International and Mainland China region support (manual configuration required)
 
 ## License
 

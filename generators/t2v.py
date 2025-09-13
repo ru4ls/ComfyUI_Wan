@@ -34,11 +34,14 @@ class WanT2VGenerator(WanAPIBase):
         "1080P"
     ]
     
+    # Define region options
+    REGION_OPTIONS = [
+        "international",
+        "mainland_china"
+    ]
+    
     def __init__(self):
         super().__init__()
-        # Use the centralized API endpoint from the base class
-        # To use Mainland China region, modify API_ENDPOINT_POST_VIDEO in core/base.py
-        self.api_url = self.API_ENDPOINT_POST_VIDEO
     
     @classmethod
     def INPUT_TYPES(cls):
@@ -64,6 +67,9 @@ class WanT2VGenerator(WanAPIBase):
                 "prompt": ("STRING", {
                     "multiline": True,
                     "default": "A kitten running in the moonlight"
+                }),
+                "region": (cls.REGION_OPTIONS, {
+                    "default": "international"
                 })
             },
             "optional": {
@@ -94,10 +100,14 @@ class WanT2VGenerator(WanAPIBase):
     FUNCTION = "generate"
     CATEGORY = "Ru4ls/Wan"
     
-    def generate(self, model, prompt, negative_prompt="", resolution="1080P", 
+    def generate(self, model, prompt, region, negative_prompt="", resolution="1080P", 
                  prompt_extend=True, watermark=False, seed=0, output_dir="./videos"):
-        # Check API key
-        self.check_api_key()
+        # Check API key based on region
+        api_key = self.check_api_key(region)
+        
+        # Get the appropriate API endpoints based on region
+        endpoints = self.get_api_endpoints(region)
+        api_url = endpoints["video_post"]
         
         # Prepare API payload for text-to-video generation
         payload = {
@@ -140,15 +150,15 @@ class WanT2VGenerator(WanAPIBase):
         
         # Set headers according to DashScope documentation
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "X-DashScope-Async": "enable"  # Wan requires async processing
         }
         
         try:
             # Make API request
-            print(f"Making API request to {self.api_url}")
-            response = requests.post(self.api_url, headers=headers, json=payload)
+            print(f"Making API request to {api_url}")
+            response = requests.post(api_url, headers=headers, json=payload)
             print(f"Response status code: {response.status_code}")
             if hasattr(response, 'text'):
                 print(f"Response text: {response.text[:500]}...")  # Print first 500 chars
@@ -165,7 +175,7 @@ class WanT2VGenerator(WanAPIBase):
                 print(f"Task created with ID: {task_id}, status: {task_status}")
                 
                 # Now we need to poll for the result
-                task_result = self.poll_task_result(task_id, output_dir)
+                task_result = self.poll_task_result(task_id, output_dir, region)
                 return task_result  # Return both path to downloaded video file and video URL
             else:
                 raise ValueError(f"Unexpected API response format: {result}")
@@ -195,16 +205,19 @@ class WanT2VGenerator(WanAPIBase):
         except Exception as e:
             raise RuntimeError(f"Failed to process API response: {str(e)}")
     
-    def poll_task_result(self, task_id, output_dir="./videos"):
+    def poll_task_result(self, task_id, output_dir="./videos", region="international"):
         """Poll for task result until completion and download video"""
         import time
         
-        # URL for querying task results
-        # To use Mainland China region, modify API_ENDPOINT_GET in core/base.py
-        query_url = self.API_ENDPOINT_GET.format(task_id=task_id)
+        # Get the appropriate API endpoints based on region
+        endpoints = self.get_api_endpoints(region)
+        query_url = endpoints["get"].format(task_id=task_id)
+        
+        # Check API key based on region
+        api_key = self.check_api_key(region)
         
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
         }
         
