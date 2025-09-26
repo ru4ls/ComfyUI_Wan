@@ -340,6 +340,10 @@ Prompt: "Generate an image of a cat"
 
 ![Text-to-Image Example](media/ComfyUI_Wan-t2i.png)
 
+Prompt: "Image_url_1 wearing Image_url_2"
+
+![Image-to-Image Example](media/ComfyUI_Wan-i2i.png)
+
 ## Security
 
 The API key is loaded from the `DASHSCOPE_API_KEY` environment variable and never stored in files or code, following Alibaba Cloud security best practices.
