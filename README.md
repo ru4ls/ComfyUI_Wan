@@ -11,10 +11,10 @@ This is a direct integration with Alibaba Cloud's Model Studio service, not a th
 
 - **Enterprise-Grade Infrastructure**: Leverages Alibaba Cloud's battle-tested AI platform serving millions of requests daily
 - **State-of-the-Art Models**: Access to the latest Wan models with continuous updates:
-  - **Text-to-Image**: wan2.2-t2i-flash (Speed Edition), wan2.2-t2i-plus (Professional Edition)
-  - **Image-to-Video**: wan2.2-i2v-flash (Speed Edition), wan2.2-i2v-plus (Professional Edition)
+  - **Text-to-Image**: wan2.5-t2i-preview (Preview Edition), wan2.2-t2i-flash (Speed Edition), wan2.2-t2i-plus (Professional Edition), wanx2.1-t2i-turbo (Turbo Edition), wanx2.1-t2i-plus (Plus Edition), wanx2.0-t2i-turbo (Turbo Edition)
+  - **Image-to-Video**: wan2.5-i2v-preview (Preview Edition), wan2.2-i2v-flash (Speed Edition), wan2.2-i2v-plus (Professional Edition)
   - **Image-to-Video Effects**: wan2.1-i2v-plus (Professional Edition)
-  - **Text-to-Video**: wan2.2-t2v-plus (Professional Edition)
+  - **Text-to-Video**: wan2.5-t2v-preview (Preview Edition), wan2.2-t2v-plus (Professional Edition), wanx2.1-t2v-turbo (Turbo Edition), wanx2.1-t2v-plus (Plus Edition)
   - **Image-to-Video (First/Last Frames)**: wan2.1-kf2v-plus (Professional Edition)
   - **Universal Video Editing (VACE)**: wan2.1-vace-plus (Professional Edition) - Split into 5 specialized nodes for better usability
 - **Commercial Licensing**: Properly licensed for commercial use through Alibaba Cloud's terms of service
@@ -42,10 +42,11 @@ All API endpoints are centrally managed in the `core/base.py` file, making it ea
 
 | Node Name | Function | Model | Description |
 |-----------|----------|-------|-------------|
-| Wan Text-to-Image Generator | T2I | wan2.2-t2i-flash, wan2.2-t2i-plus | Generate images from text prompts with multiple resolution options. Returns both image tensor and image URL. |
-| Wan Image-to-Video Generator | I2V | wan2.2-i2v-flash, wan2.2-i2v-plus | Create 5-second videos from a single image and text prompt. Returns both video file path and video URL. |
+| Wan Text-to-Image Generator | T2I | wan2.5-t2i-preview, wan2.2-t2i-flash, wan2.2-t2i-plus, wanx2.1-t2i-turbo, wanx2.1-t2i-plus, wanx2.0-t2i-turbo | Generate images from text prompts with multiple resolution options. Returns both image tensor and image URL. |
+| Wan Image-to-Image Generator | I2I | wan2.5-i2i-preview | Edit images using text prompts and reference images with multiple size options. Returns both image tensor and image URL. |
+| Wan Image-to-Video Generator | I2V | wan2.5-i2v-preview, wan2.2-i2v-flash, wan2.2-i2v-plus | Create 5-second videos from a single image and text prompt. Returns both video file path and video URL. |
 | Wan Image-to-Video Effect Generator | I2V Effect | wan2.1-i2v-plus | Generate videos with predefined effects from a single image. Returns both video file path and video URL. |
-| Wan Text-to-Video Generator | T2V | wan2.2-t2v-plus | Generate 5-second videos directly from text prompts. Returns both video file path and video URL. |
+| Wan Text-to-Video Generator | T2V | wan2.5-t2v-preview, wan2.2-t2v-plus, wanx2.1-t2v-turbo, wanx2.1-t2v-plus | Generate 5-second videos directly from text prompts. Returns both video file path and video URL. |
 | Wan Image-to-Video (First/Last Frame) Generator | II2V | wan2.1-kf2v-plus | Create 5-second videos using both first and last frame images. Returns both video file path and video URL. |
 | Wan VACE - Multi-Image Reference | VACE | wan2.1-vace-plus | Generate videos from multiple reference images. Returns both video file path and video URL. |
 | Wan VACE - Video Repainting | VACE | wan2.1-vace-plus | Repaint videos while preserving motion. Returns both video file path and video URL. |
@@ -110,7 +111,7 @@ If you only use the international region, you only need to set `DASHSCOPE_API_KE
 ## Node Parameters
 
 ### Text-to-Image Generator
-- **model**: Select the Wan model to use (wan2.2-t2i-flash or wan2.2-t2i-plus)
+- **model**: Select the Wan model to use (wan2.5-t2i-preview, wan2.2-t2i-flash, wan2.2-t2i-plus, wanx2.1-t2i-turbo, wanx2.1-t2i-plus, wanx2.0-t2i-turbo)
 - **prompt** (required): The text prompt for image generation
 - **size**: Output image resolution (1024×1024, 1152×896, 896×1152, 1280×720, 720×1280, 1440×512, 512×1440)
 - **negative_prompt**: Text describing content to avoid in the image
@@ -122,10 +123,25 @@ If you only use the international region, you only need to set `DASHSCOPE_API_KE
 - **image**: Generated image as a tensor (can be connected directly to other ComfyUI nodes)
 - **image_url**: URL of the generated image on Alibaba Cloud's servers
 
+### Image-to-Image Generator
+- **model**: Select the Wan model to use (wan2.5-i2i-preview)
+- **image_url_1** (required): Publicly accessible URL to the first input image for editing
+- **image_url_2** (optional): Publicly accessible URL to the second reference image (for multi-reference generation)
+- **prompt** (required): The text prompt describing the desired changes to the image
+- **size**: Output image resolution (1024×1024, 1152×896, 896×1152, 1280×720, 720×1280, 1440×512, 512×1440)
+- **negative_prompt**: Text describing content to avoid in the edited image
+- **watermark**: Add Wan watermark to output
+- **seed**: Random seed for generation (0 for random)
+- **num_images**: Number of images to generate (1-4)
+
+**Return Values:**
+- **image**: Generated image as a tensor (can be connected directly to other ComfyUI nodes)
+- **image_url**: URL of the generated image on Alibaba Cloud's servers
+
 ### Text-to-Video Generator
-- **model**: Select the Wan model to use (wan2.2-t2v-plus)
+- **model**: Select the Wan model to use (wan2.5-t2v-preview, wan2.2-t2v-plus, wanx2.1-t2v-turbo, wanx2.1-t2v-plus)
 - **prompt** (required): The text prompt for video generation
-- **resolution**: Output video resolution (480P, 1080P)
+- **resolution**: Output video resolution (480P, 720P, 1080P)
 - **negative_prompt**: Text describing content to avoid in the video
 - **prompt_extend**: Enable intelligent prompt rewriting for better results
 - **seed**: Random seed for generation (0 for random)
@@ -139,7 +155,7 @@ If you only use the international region, you only need to set `DASHSCOPE_API_KE
 **Note**: To preview the generated video in ComfyUI, connect the output of this node to a "Load Video (Path)" node from ComfyUI-VideoHelperSuite.
 
 ### Image-to-Video Generator
-- **model**: Select the Wan model to use (wan2.2-i2v-flash or wan2.2-i2v-plus)
+- **model**: Select the Wan model to use (wan2.5-i2v-preview, wan2.2-i2v-flash, wan2.2-i2v-plus)
 - **image_url**: Publicly accessible URL to the image for the first frame of the video
 - **prompt** (required): The text prompt describing the video content
 - **resolution**: Output video resolution (480P, 720P, 1080P)
@@ -329,6 +345,19 @@ Prompt: "Generate an image of a cat"
 The API key is loaded from the `DASHSCOPE_API_KEY` environment variable and never stored in files or code, following Alibaba Cloud security best practices.
 
 ## Changelog
+
+### v1.3.0 - Image-to-Image Support
+- Added new Wan Image-to-Image Generator node supporting wan2.5-i2i-preview model
+- Implemented complete i2i functionality with multi-image reference support
+- Added i2i API endpoint to core/base.py for proper communication
+- Updated documentation with new node and its parameters
+- Enhanced Available Nodes table to include Image-to-Image capabilities
+
+### v1.2.0 - Model Updates
+- Added new Wan2.5 Preview models: wan2.5-t2i-preview, wan2.5-i2v-preview, wan2.5-t2v-preview
+- Added WanX models: wanx2.1-t2i-turbo, wanx2.1-t2i-plus, wanx2.1-t2v-turbo, wanx2.1-t2v-plus, wanx2.0-t2i-turbo
+- Updated model lists across all generator nodes (T2I, I2V, T2V) to include the latest Wan models
+- Enhanced documentation with updated model information and capabilities
 
 ### v1.1.0 - Region Selection Feature
 - Added region selection parameter to all nodes, allowing users to easily switch between international and Mainland China regions

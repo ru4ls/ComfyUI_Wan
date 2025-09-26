@@ -20,21 +20,25 @@ try:
 except ImportError:
     pass
 
-class WanI2VGenerator(WanAPIBase):
-    """Node for image-to-video generation using Wan model"""
+class WanI2IGenerator(WanAPIBase):
+    """Node for image-to-image generation using Wan model"""
     
-    # Define available Wan i2v models
+    # Define available Wan i2i models
     MODEL_OPTIONS = [
-        "wan2.5-i2v-preview",  # Preview Edition
-        "wan2.2-i2v-flash",  # Speed Edition
-        "wan2.2-i2v-plus"    # Professional Edition
+        "wan2.5-i2i-preview",  # Preview Edition
     ]
     
-    # Define allowed resolutions for Wan i2v models (using uppercase P as required by API)
-    RESOLUTION_OPTIONS = [
-        "480P",
-        "720P",
-        "1080P"
+    # Define allowed sizes for Wan i2i models
+    SIZE_OPTIONS = [
+        "1024*1024",  # 1:1 square (default)
+        "1152*896",   # 9:7 landscape
+        "896*1152",   # 7:9 portrait
+        "1280*720",   # 16:9 landscape
+        "720*1280",   # 9:16 portrait
+        "1440*512",   # Wide landscape
+        "512*1440",   # Tall portrait
+        "768*768",    # 1:1 square
+        "1440*1440",  # 1:1 square
     ]
     
     # Define region options
@@ -48,46 +52,32 @@ class WanI2VGenerator(WanAPIBase):
     
     @classmethod
     def INPUT_TYPES(cls):
-        # Define output directory options
-        if COMFYUI_AVAILABLE:
-            # Use ComfyUI's output directory with browseable option
-            output_dir_options = {
-                "default": "./videos",
-                "tooltip": "Directory where the generated video will be saved. Browse to select a custom directory."
-            }
-        else:
-            # Fallback to string input
-            output_dir_options = {
-                "default": "./videos",
-                "multiline": False
-            }
-            
         return {
             "required": {
                 "model": (cls.MODEL_OPTIONS, {
-                    "default": "wan2.2-i2v-flash"
+                    "default": "wan2.5-i2i-preview"
                 }),
-                "image_url": ("STRING", {
-                    "default": "https://example.com/your_image.png"
+                "image_url_1": ("STRING", {
+                    "default": "https://example.com/your_image1.png"
                 }),
                 "prompt": ("STRING", {
                     "multiline": True,
-                    "default": "A cat running on the grass"
+                    "default": "Edit the image with the desired changes"
                 }),
                 "region": (cls.REGION_OPTIONS, {
                     "default": "international"
                 })
             },
             "optional": {
+                "image_url_2": ("STRING", {
+                    "default": ""
+                }),
                 "negative_prompt": ("STRING", {
                     "multiline": True,
                     "default": ""
                 }),
-                "resolution": (cls.RESOLUTION_OPTIONS, {
-                    "default": "720P"
-                }),
-                "prompt_extend": ("BOOLEAN", {
-                    "default": True
+                "size": (cls.SIZE_OPTIONS, {
+                    "default": "1024*1024"
                 }),
                 "watermark": ("BOOLEAN", {
                     "default": False
@@ -97,35 +87,44 @@ class WanI2VGenerator(WanAPIBase):
                     "min": 0,
                     "max": 2147483647
                 }),
-                "output_dir": ("STRING", output_dir_options)
+                "num_images": ("INT", {
+                    "default": 1,
+                    "min": 1,
+                    "max": 4
+                })
             }
         }
     
-    RETURN_TYPES = ("STRING", "STRING")  # Returns path to downloaded video file and video URL
-    RETURN_NAMES = ("video_file_path", "video_url")
+    RETURN_TYPES = ("IMAGE", "STRING")  # Returns image tensor and image URL
+    RETURN_NAMES = ("image", "image_url")
     FUNCTION = "generate"
     CATEGORY = "Ru4ls/Wan"
     
-    def generate(self, model, image_url, prompt, region, negative_prompt="", resolution="720P", 
-                 prompt_extend=True, watermark=False, seed=0, output_dir="./videos"):
+    def generate(self, model, image_url_1, prompt, region, image_url_2="", negative_prompt="", size="1024*1024", 
+                 watermark=False, seed=0, num_images=1):
         # Check API key based on region
         api_key = self.check_api_key(region)
         
         # Get the appropriate API endpoints based on region
         endpoints = self.get_api_endpoints(region)
-        api_url = endpoints["video_post"]
+        api_url = endpoints["i2i_post"]
         
-        # Prepare API payload for image-to-video generation
+        # Prepare images array - at least one image is required
+        images = [image_url_1.strip()]
+        if image_url_2 and image_url_2.strip():
+            images.append(image_url_2.strip())
+        
+        # Prepare API payload for image-to-image generation
         payload = {
             "model": model,
             "input": {
                 "prompt": prompt,
-                "img_url": image_url
+                "images": images
             },
             "parameters": {
-                "resolution": resolution,
-                "prompt_extend": prompt_extend,
-                "watermark": watermark
+                "size": size,
+                "watermark": watermark,
+                "n": num_images
             }
         }
         
@@ -162,8 +161,8 @@ class WanI2VGenerator(WanAPIBase):
                 print(f"Task created with ID: {task_id}, status: {task_status}")
                 
                 # Now we need to poll for the result
-                task_result = self.poll_task_result(task_id, output_dir, region)
-                return task_result  # Return both path to downloaded video file and video URL
+                task_result = self.poll_task_result(task_id, region)
+                return task_result  # Return both image tensor and image URL
             else:
                 raise ValueError(f"Unexpected API response format: {result}")
                 
@@ -192,8 +191,8 @@ class WanI2VGenerator(WanAPIBase):
         except Exception as e:
             raise RuntimeError(f"Failed to process API response: {str(e)}")
     
-    def poll_task_result(self, task_id, output_dir="./videos", region="international"):
-        """Poll for task result until completion and download video"""
+    def poll_task_result(self, task_id, region):
+        """Poll for task result until completion"""
         import time
         
         # Get the appropriate API endpoints based on region
@@ -208,7 +207,7 @@ class WanI2VGenerator(WanAPIBase):
             "Content-Type": "application/json"
         }
         
-        max_attempts = 60  # Maximum polling attempts (may take longer for video)
+        max_attempts = 30  # Maximum polling attempts
         attempt = 0
         
         while attempt < max_attempts:
@@ -223,48 +222,20 @@ class WanI2VGenerator(WanAPIBase):
                 
                 if task_status == "SUCCEEDED":
                     # Task completed successfully
-                    if "video_url" in result["output"]:
-                        video_url = result["output"]["video_url"]
+                    results = result["output"]["results"]
+                    if len(results) > 0 and "url" in results[0]:
+                        image_url = results[0]["url"]
+                        # Download the generated image
+                        image_response = requests.get(image_url)
+                        image_response.raise_for_status()
                         
-                        # Download the video
-                        video_response = requests.get(video_url)
-                        video_response.raise_for_status()
+                        # Convert to tensor
+                        image = Image.open(io.BytesIO(image_response.content))
+                        image_tensor = torch.from_numpy(np.array(image).astype(np.float32) / 255.0)
+                        image_tensor = image_tensor.unsqueeze(0)  # Add batch dimension
                         
-                        # Create a unique filename for the video
-                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        video_filename = f"wan_i2v_{timestamp}.mp4"
-                        
-                        # Handle output directory based on ComfyUI availability
-                        if COMFYUI_AVAILABLE and not output_dir.startswith(("./", "/")):
-                            # Use ComfyUI's output directory structure
-                            if output_dir.endswith("/"):
-                                output_dir = output_dir[:-1]
-                            full_output_folder = folder_paths.get_output_directory()
-                            output_path = os.path.join(full_output_folder, output_dir)
-                        else:
-                            # Resolve output directory path (existing logic)
-                            if output_dir.startswith("./"):
-                                # Relative to the node directory
-                                output_path = os.path.join(os.path.dirname(__file__), output_dir[2:])
-                            else:
-                                output_path = output_dir
-                        
-                        # Create output directory if it doesn't exist
-                        os.makedirs(output_path, exist_ok=True)
-                        
-                        # Save video to file
-                        video_path = os.path.join(output_path, video_filename)
-                        with open(video_path, "wb") as f:
-                            f.write(video_response.content)
-                        
-                        print(f"Video downloaded and saved to: {video_path}")
-                        # Return path relative to ComfyUI output directory if using ComfyUI
-                        if COMFYUI_AVAILABLE and not output_dir.startswith(("./", "/")):
-                            return_path = os.path.join(output_dir, video_filename) if output_dir != "videos/" else video_filename
-                        else:
-                            return_path = video_path  # Return full path
-                        # Return both the file path and the video URL
-                        return (return_path, video_url)
+                        # Return both the image tensor and the image URL
+                        return (image_tensor, image_url)
                     else:
                         raise ValueError(f"Unexpected API response format: {result}")
                         
@@ -276,7 +247,7 @@ class WanI2VGenerator(WanAPIBase):
                     
                 elif task_status in ["PENDING", "RUNNING"]:
                     # Task still in progress, wait and retry
-                    time.sleep(10)  # Wait 10 seconds before retrying (video generation may take longer)
+                    time.sleep(5)  # Wait 5 seconds before retrying
                     attempt += 1
                     continue
                     

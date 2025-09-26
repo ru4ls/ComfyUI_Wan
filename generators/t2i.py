@@ -24,8 +24,12 @@ class WanT2IGenerator(WanAPIBase):
     
     # Define available Wan models
     MODEL_OPTIONS = [
+        "wan2.5-t2i-preview",  # Preview Edition
         "wan2.2-t2i-flash",  # Speed Edition
-        "wan2.2-t2i-plus"    # Professional Edition
+        "wan2.2-t2i-plus",    # Professional Edition
+        "wanx2.1-t2i-turbo"  # Turbo Edition
+        "wanx2.1-t2i-plus"    # Plus Edition
+        "wanx2.0-t2i-turbo"  # Turbo Edition
     ]
     
     # Define allowed sizes for Wan models with descriptive names
@@ -38,6 +42,8 @@ class WanT2IGenerator(WanAPIBase):
         "720*1280",   # 9:16 portrait
         "1440*512",   # Wide landscape
         "512*1440"    # Tall portrait
+        "768*768"    # 1:1 square
+        "1440*1440"    # 1:1 square
     ]
     
     # Define region options
