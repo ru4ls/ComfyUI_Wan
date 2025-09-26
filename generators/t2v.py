@@ -25,12 +25,17 @@ class WanT2VGenerator(WanAPIBase):
     
     # Define available Wan t2v models
     MODEL_OPTIONS = [
-        "wan2.2-t2v-plus"    # Professional Edition
+        "wan2.5-t2v-preview",  # Preview Edition
+        "wan2.2-t2v-plus",    # Professional Edition
+        "wanx2.1-t2v-turbo",  # Turbo Edition
+        "wanx2.1-t2v-plus",    # Plus Edition
+    
     ]
     
     # Define allowed resolutions for Wan t2v models
     RESOLUTION_OPTIONS = [
         "480P",
+        "720P",
         "1080P"
     ]
     
